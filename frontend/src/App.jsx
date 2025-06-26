@@ -1,55 +1,51 @@
-// 경로: frontend/src/App.jsx
-
-import { useEffect } from 'react'; // useEffect 추가
+import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
-import { useDeviceInfo } from './features/device-info/useDeviceInfo.js'; // 우리 예전 훅도 불러오자!
+import { useDeviceInfo } from './hooks/useDeviceInfo';
 
 const App = () => {
-    const { messages, isConnected, sendMessage } = useWebSocket('ws://localhost:8082');
-    const deviceInfo = useDeviceInfo(); // 디바이스 정보 가져오기
+    // 이제 localhost가 아닌, 진짜 인터넷 EC2 서버 주소로 접속
+    const { messages, isConnected, sendMessage } = useWebSocket('ws://3.92.213.168/ws');
+    const deviceInfo = useDeviceInfo();
 
-    // isConnected 상태가 true로 바뀌는 순간에 딱 한번 실행됨
+    // 서버에 연결되면, 내 디바이스 정보를 딱 한 번만 보냄
     useEffect(() => {
-        // 서버랑 연결됐고, 디바이스 정보도 준비됐을 때
         if (isConnected && deviceInfo) {
-            console.log('서버에 디바이스 정보 전송!');
-            // 서버로 보낼 메시지 포맷을 정함
+            console.log('서버에 내 디바이스 정보 전송!');
             const message = {
                 type: 'DEVICE_INFO',
                 payload: deviceInfo,
             };
-            // JSON 문자열로 바꿔서 전송
             sendMessage(JSON.stringify(message));
         }
-    }, [isConnected, deviceInfo]); // isConnected나 deviceInfo가 바뀔 때마다 체크
+    }, [isConnected, deviceInfo, sendMessage]);
+
+    // 서버로부터 받은 메시지 중 가장 마지막 메시지를 해석
+    const lastMessage = messages.length > 0 ? JSON.parse(messages[messages.length - 1]) : null;
+    // 그 메시지가 '클라이언트 목록 업데이트' 메시지이면, 그 안의 클라이언트 목록을 사용
+    const onlineClients = lastMessage?.type === 'UPDATE_CLIENTS' ? lastMessage.payload : [];
 
     return (
-        // ... 나머지 JSX는 이전과 동일 ...
-        <div>
-            <nav style={{ padding: '10px 20px', borderBottom: '1px solid #eee', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <Link to="/" style={{ marginRight: '10px', textDecoration: 'none' }}>홈</Link>
-                    <Link to="/dashboard" style={{ textDecoration: 'none' }}>대시보드</Link>
-                </div>
-                <div>
-                    <span>서버 상태: </span>
-                    <span style={{ color: isConnected ? 'green' : 'red', fontWeight: 'bold' }}>
-            {isConnected ? '연결됨' : '연결 끊김'}
-          </span>
+        <div className="bg-slate-900 text-slate-300 min-h-screen">
+            <nav className="bg-slate-800/50 backdrop-blur-sm sticky top-0 z-10">
+                <div className="container mx-auto flex justify-between items-center p-4">
+                    <div>
+                        <Link to="/" className="text-white font-bold text-lg me-4">SysInfo</Link>
+                        <Link to="/dashboard" className="text-slate-300 hover:text-white">대시보드</Link>
+                    </div>
+                    <div>
+                        <span className="text-sm">서버 상태: </span>
+                        <span className={`font-bold ${isConnected ? 'text-green-400' : 'text-red-500'}`}>
+              {isConnected ? '● 온라인' : '○ 오프라인'}
+            </span>
+                    </div>
                 </div>
             </nav>
 
             <main>
-                <Outlet />
+                {/* 자식 페이지(홈, 대시보드)에 온라인 클라이언트 목록 데이터를 넘겨줌 */}
+                <Outlet context={{ onlineClients }} />
             </main>
-
-            <div style={{ position: 'fixed', bottom: 0, left: 0, padding: '10px', background: '#f0f0f0', borderTop: '1px solid #ccc', width: '100%', maxHeight: '150px', overflowY: 'auto' }}>
-                <h6 className="m-0">서버에서 받은 메시지 로그:</h6>
-                <pre className="m-0 ps-3" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-          {messages.length > 0 ? messages[messages.length - 1] : '...'}
-        </pre>
-            </div>
         </div>
     );
 };
