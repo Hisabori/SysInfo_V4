@@ -27,18 +27,20 @@ jobs:
             # 2. 올바른 프로젝트 폴더로 이동
             cd /home/ubuntu/SysInfo_V4
             
-            # 3. GitHub에서 최신 코드를 받아옴
+            # 3. GitHub에서 최신 코드를 강제로 받아옴
             git fetch --all
-            git reset --hard origin/main            
+            git reset --hard origin/main
+            
             # 4. 프론트엔드 설치 및 빌드
             echo "--- Building Frontend ---"
             cd frontend
             npm install
-            chmod +x node_modules/.bin/* # <-- 권한 문제 해결!
+            chmod +x node_modules/.bin/*
             npm run build
 
             # 5. 백엔드 설치 및 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             npm install
-            npm run start                 # <-- pm2 실행 방식 변경!
+            chmod +x node_modules/.bin/* # <-- ★★ 여기! 백엔드용 권한 부여 ★★
+            npm run start
