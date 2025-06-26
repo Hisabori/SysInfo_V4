@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
-import { useDeviceInfo } from './hooks/useDeviceInfo';
+import { useDeviceInfo } from './hooks/useDeviceInfo.js';
 
 const App = () => {
     // 이제 localhost가 아닌, 진짜 인터넷 EC2 서버 주소로 접속

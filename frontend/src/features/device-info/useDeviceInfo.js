@@ -1,4 +1,4 @@
-// 경로: src/features/device-info/useDeviceInfo.js
+// 경로: src/features/device-info/useDeviceInfo.js.js
 
 import { useState, useEffect } from 'react';
 

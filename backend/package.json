@@ -1,11 +1,19 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "pm2 restart sysinfo-backend || pm2 start server.js --name 'sysinfo-backend'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0",
-    "uuid": "^11.1.0",
-    "ws": "^8.18.2"
+    "express": "^4.19.2",
+    "pm2": "^5.4.2",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
   }
 }
