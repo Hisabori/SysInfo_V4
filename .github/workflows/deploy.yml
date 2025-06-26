@@ -24,23 +24,35 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # 2. 올바른 프로젝트 폴더로 이동
-            cd /home/ubuntu/SysInfo_V4
+            # 2. ★★★ Nginx가 우리집 구경할 수 있게 길 터주기 (제일 중요) ★★★
+            sudo chmod 755 /home/ubuntu
+            # 'study'와 'sysinfo' 폴더가 있다면 해당 폴더들에도 권한을 부여합니다.
+            # 만약 이 폴더들이 없다면 이 줄들은 자동으로 무시됩니다.
+            sudo chmod 755 /home/ubuntu/study || true
+            sudo chmod 755 /home/ubuntu/study/sysinfo || true
+            sudo chmod 755 /home/ubuntu/study/sysinfo/SysInfo_V4
+
+            # 3. 올바른 프로젝트 폴더로 이동
+            cd /home/ubuntu/study/sysinfo/SysInfo_V4
             
-            # 3. GitHub에서 최신 코드를 강제로 받아옴
+            # 4. GitHub에서 최신 코드를 강제로 받아옴
             git fetch --all
             git reset --hard origin/main
             
-            # 4. 프론트엔드 설치 및 빌드
+            # 5. 프론트엔드 설치 및 빌드
             echo "--- Building Frontend ---"
             cd frontend
             npm install
             chmod +x node_modules/.bin/*
             npm run build
 
-            # 5. 백엔드 설치 및 재시작
+            # 6. 백엔드 설치 및 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             npm install
-            chmod +x node_modules/.bin/* # <-- ★★ 여기! 백엔드용 권한 부여 ★★
+            chmod +x node_modules/.bin/*
             npm run start
+
+            # 7. 마지막으로 Nginx 재시작해서 모든 변경사항 적용
+            echo "--- Restarting Nginx ---"
+            sudo systemctl restart nginx
