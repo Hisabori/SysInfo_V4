@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "pm2 restart sysinfo-backend || pm2 start server.js --name 'sysinfo-backend'",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

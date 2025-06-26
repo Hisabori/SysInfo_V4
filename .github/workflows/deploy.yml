@@ -5,11 +5,11 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main # main 브랜치에 코드가 push될 때마다 자동으로 실행
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest # 이 작업은 GitHub이 제공하는 가상 리눅스 환경에서 실행됨
+    runs-on: ubuntu-latest
 
     steps:
       - name: Deploy to EC2
@@ -19,13 +19,12 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_PEM_KEY }}
 
-          # 아래 명령어들을 EC2 서버에서 순서대로 실행
           script: |
-            # 1. 로봇이 npm, node를 찾을 수 있도록 환경 설정 불러오기
+            # 1. nvm(Node Version Manager) 환경 설정 불러오기
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # 2. 올바른 프로젝트 폴더로 이동 (수정된 경로)
+            # 2. 올바른 프로젝트 폴더로 이동
             cd /home/ubuntu/SysInfo_V4
             
             # 3. GitHub에서 최신 코드를 받아옴
@@ -35,11 +34,11 @@ jobs:
             echo "--- Building Frontend ---"
             cd frontend
             npm install
+            chmod +x node_modules/.bin/* # <-- 권한 문제 해결!
             npm run build
 
             # 5. 백엔드 설치 및 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             npm install
-            # 로컬에 설치된 pm2를 직접 실행해서, 기존에 켜놨던 서버를 재시작
-            ./node_modules/.bin/pm2 restart sysinfo-backend
+            npm run start                 # <-- pm2 실행 방식 변경!
