@@ -1,46 +1,45 @@
-# .github/workflows/deploy.yml
+# 경로: .github/workflows/deploy.yml
 
-# 이 자동화 작업의 이름
 name: Deploy to EC2
 
-# 언제 이 작업을 실행할 것인가?
 on:
   push:
     branches:
       - main # main 브랜치에 코드가 push될 때마다 자동으로 실행
 
-# 어떤 작업들을 할 것인가?
 jobs:
   deploy:
-    # 이 작업은 GitHub이 제공하는 가상 리눅스 환경에서 실행됨
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # 이 작업은 GitHub이 제공하는 가상 리눅스 환경에서 실행됨
 
-    # 작업 순서
     steps:
-      # 1. SSH로 우리 EC2 서버에 접속해서 배포 명령어 실행하기
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}      # 아까 저장한 비밀 정보 사용
-          username: ${{ secrets.EC2_USER }}  # 아까 저장한 비밀 정보 사용
-          key: ${{ secrets.EC2_PEM_KEY }}      # 아까 저장한 비밀 정보 사용
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_PEM_KEY }}
 
           # 아래 명령어들을 EC2 서버에서 순서대로 실행
           script: |
-            # 프로젝트 폴더로 이동
-            cd /home/ubuntu/study/sysinfo/SysInfo_V4
-
-            # GitHub에서 최신 코드를 받아옴
+            # 1. 로봇이 npm, node를 찾을 수 있도록 환경 설정 불러오기
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            # 2. 올바른 프로젝트 폴더로 이동 (수정된 경로)
+            cd /home/ubuntu/SysInfo_V4
+            
+            # 3. GitHub에서 최신 코드를 받아옴
             git pull origin main
-
-            # 프론트엔드 설치 및 빌드
+            
+            # 4. 프론트엔드 설치 및 빌드
+            echo "--- Building Frontend ---"
             cd frontend
             npm install
-            chmod +x node_modules/.bin/*
             npm run build
 
-            # 백엔드 설치 및 재시작
+            # 5. 백엔드 설치 및 재시작
+            echo "--- Restarting Backend ---"
             cd ../backend
             npm install
-            # pm2가 로컬에 설치돼 있으므로 직접 경로 지정
+            # 로컬에 설치된 pm2를 직접 실행해서, 기존에 켜놨던 서버를 재시작
             ./node_modules/.bin/pm2 restart sysinfo-backend
