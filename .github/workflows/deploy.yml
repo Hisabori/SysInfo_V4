@@ -20,40 +20,42 @@ jobs:
           key: ${{ secrets.EC2_PEM_KEY }}
 
           script: |
-            # 1. nvm(Node Version Manager) 환경 설정 불러오기
+            # 1. nvm 환경 설정 불러오기
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # 2. 프로젝트 폴더 경로 변수 설정
+            # 2. 프로젝트 폴더 경로 설정 및 생성/이동
             PROJECT_DIR="/home/ubuntu/SysInfo_V4"
-            GIT_REPO_URL="https://github.com/Hisabori/SysInfo_V4.git"
-
-            # 3. 폴더가 있는지 확인하고, 없으면 clone, 있으면 pull
             if [ ! -d "$PROJECT_DIR" ]; then
-              echo "--- Cloning repository ---"
-              git clone $GIT_REPO_URL $PROJECT_DIR
+              git clone https://github.com/Hisabori/SysInfo_V4.git $PROJECT_DIR
             fi
-            
             cd $PROJECT_DIR
-            echo "--- Pulling latest code ---"
+            
+            # 3. GitHub 최신 코드로 강제 덮어쓰기
             git fetch --all
             git reset --hard origin/main
             
-            # 4. 권한 설정 (Nginx가 읽을 수 있도록)
-            sudo chmod -R 755 $PROJECT_DIR
-
-            # 5. 프론트엔드 빌드
+            # 4. 프론트엔드 설치 및 빌드
             echo "--- Building Frontend ---"
             cd frontend
             npm install
             npm run build
 
-            # 6. 백엔드 재시작
+            # 5. 백엔드 설치 및 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             npm install
-            npm run start
+            
+            # 파일 이름이 Server.js일 경우를 대비해 강제로 소문자로 변경 (오류 나도 무시)
+            mv Server.js server.js || true
+            
+            # 로컬에 설치된 pm2를 직접 실행
+            ./node_modules/.bin/pm2 restart sysinfo-backend || ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
 
+            # 6. Nginx가 읽을 수 있도록 프로젝트 전체에 권한 부여
+            echo "--- Setting Permissions ---"
+            sudo chmod -R 755 $PROJECT_DIR
+            
             # 7. Nginx 재시작
             echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
