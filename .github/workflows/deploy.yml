@@ -20,40 +20,45 @@ jobs:
           key: ${{ secrets.EC2_PEM_KEY }}
 
           script: |
-            # 1. nvm(Node Version Manager) 환경 설정 불러오기
+            # 1. nvm 환경 설정 불러오기
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # 2. 프로젝트 폴더 경로 변수 설정
+            # 2. 프로젝트 폴더 경로 설정 및 생성/이동
             PROJECT_DIR="/home/ubuntu/SysInfo_V4"
-            GIT_REPO_URL="https://github.com/Hisabori/SysInfo_V4.git"
-
-            # 3. 폴더가 있는지 확인하고, 없으면 clone, 있으면 pull
             if [ ! -d "$PROJECT_DIR" ]; then
-              echo "--- Cloning repository ---"
-              git clone $GIT_REPO_URL $PROJECT_DIR
+              git clone https://github.com/Hisabori/SysInfo_V4.git $PROJECT_DIR
             fi
-            
             cd $PROJECT_DIR
-            echo "--- Pulling latest code ---"
+            
+            # 3. GitHub 최신 코드로 강제 덮어쓰기
             git fetch --all
             git reset --hard origin/main
-            
-            # 4. 권한 설정 (Nginx가 읽을 수 있도록)
-            sudo chmod -R 755 $PROJECT_DIR
 
-            # 5. 프론트엔드 빌드
-            echo "--- Building Frontend ---"
+            # 4. 프론트엔드 의존성 설치
+            echo "--- Installing frontend dependencies ---"
             cd frontend
             npm install
-            npm run build
-
-            # 6. 백엔드 재시작
-            echo "--- Restarting Backend ---"
+            
+            # 5. 백엔드 의존성 설치
+            echo "--- Installing backend dependencies ---"
             cd ../backend
             npm install
+
+            # 6. ★★★ 모든 설치가 끝난 후, 프로젝트 전체에 권한 부여! ★★★
+            echo "--- Setting permissions ---"
+            sudo chmod -R 755 $PROJECT_DIR
+            
+            # 7. 프론트엔드 빌드 (이제 권한 있음)
+            echo "--- Building frontend ---"
+            cd ../frontend
+            npm run build
+
+            # 8. 백엔드 재시작 (이제 권한 있음)
+            echo "--- Restarting backend ---"
+            cd ../backend
             npm run start
 
-            # 7. Nginx 재시작
+            # 9. Nginx 재시작
             echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
