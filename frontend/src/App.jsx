@@ -1,28 +1,33 @@
 import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
-import { useDeviceInfo } from './hooks/useDeviceInfo.js';
+import { useDeviceInfo } from './hooks/useDeviceInfo';
+import { useMoodStore } from './store/moodStore';
 
 const App = () => {
-    // 이제 localhost가 아닌, 진짜 인터넷 EC2 서버 주소로 접속
     const { messages, isConnected, sendMessage } = useWebSocket('ws://3.92.213.168/ws');
     const deviceInfo = useDeviceInfo();
+    const setServerMoods = useMoodStore(state => state.setMoods);
 
-    // 서버에 연결되면, 내 디바이스 정보를 딱 한 번만 보냄
+    // 서버 연결 및 기기 정보 전송
     useEffect(() => {
         if (isConnected && deviceInfo) {
-            console.log('서버에 내 디바이스 정보 전송!');
-            const message = {
-                type: 'DEVICE_INFO',
-                payload: deviceInfo,
-            };
+            const message = { type: 'DEVICE_INFO', payload: deviceInfo };
             sendMessage(JSON.stringify(message));
         }
     }, [isConnected, deviceInfo, sendMessage]);
 
-    // 서버로부터 받은 메시지 중 가장 마지막 메시지를 해석
+    // 서버로부터 받은 메시지 처리
+    useEffect(() => {
+        if (messages.length > 0) {
+            const lastMessage = JSON.parse(messages[messages.length - 1]);
+            if (lastMessage.type === 'UPDATE_MOODS') {
+                setServerMoods(lastMessage.payload);
+            }
+        }
+    }, [messages, setServerMoods]);
+
     const lastMessage = messages.length > 0 ? JSON.parse(messages[messages.length - 1]) : null;
-    // 그 메시지가 '클라이언트 목록 업데이트' 메시지이면, 그 안의 클라이언트 목록을 사용
     const onlineClients = lastMessage?.type === 'UPDATE_CLIENTS' ? lastMessage.payload : [];
 
     return (
@@ -41,10 +46,8 @@ const App = () => {
                     </div>
                 </div>
             </nav>
-
             <main>
-                {/* 자식 페이지(홈, 대시보드)에 온라인 클라이언트 목록 데이터를 넘겨줌 */}
-                <Outlet context={{ onlineClients }} />
+                <Outlet context={{ onlineClients, sendMessage }} />
             </main>
         </div>
     );
