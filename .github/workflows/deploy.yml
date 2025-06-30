@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.EC2_PEM_KEY }}
 
           script: |
-            # 1. nvm 환경 설정 불러오기
+            # 1. nvm(Node Version Manager) 환경 설정 불러오기
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
@@ -45,19 +45,24 @@ jobs:
             cd ../backend
             npm install
 
-            # 6. ★★★ 모든 설치가 끝난 후, 프로젝트 전체에 권한 부여! ★★★
+            # 6. 모든 권한 부여
             echo "--- Setting permissions ---"
             sudo chmod -R 755 $PROJECT_DIR
             
-            # 7. 프론트엔드 빌드 (이제 권한 있음)
+            # 7. 프론트엔드 빌드
             echo "--- Building frontend ---"
             cd ../frontend
             npm run build
 
-            # 8. 백엔드 재시작 (이제 권한 있음)
+            # 8. 백엔드 재시작 (★ 여기가 최종 수정)
             echo "--- Restarting backend ---"
             cd ../backend
-            npm run start
+            # 먼저 기존에 돌던 모든 pm2 프로세스를 지워서 충돌 방지 (오류 나도 무시)
+            ./node_modules/.bin/pm2 delete all || true
+            # 새로 서버 시작
+            ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
+            # 현재 프로세스 목록을 저장해서 재부팅 시에도 유지
+            ./node_modules/.bin/pm2 save
 
             # 9. Nginx 재시작
             echo "--- Restarting Nginx ---"
