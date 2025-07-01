@@ -1,19 +1,27 @@
 import express from 'express';
+import https from 'https';
+import fs from 'fs';
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
-const port = 8082; // 포트 번호 확인!
+const port = 443; // https 기본 포트
 
-const server = app.listen(port, () => {
-    console.log(`백엔드 서버가 http://localhost:${port} 에서 시작됐습니다.`);
+// SSL 인증서 경로
+const server = https.createServer({
+    cert: fs.readFileSync('/etc/letsencrypt/live/sosadmental.com/fullchain.pem'),
+    key: fs.readFileSync('/etc/letsencrypt/live/sosadmental.com/privkey.pem')
+}, app);
+
+server.listen(port, () => {
+    console.log(`백엔드 서버가 https://sosadmental.com 에서 시작됐습니다.`);
 });
 
 const wss = new WebSocketServer({ server });
 
 // --- 데이터 저장소 ---
 const clients = new Map();
-const moodHistory = []; // <-- 기분 기록을 저장할 배열
+const moodHistory = [];
 
 // --- 방송 함수들 ---
 const broadcastOnlineClients = () => {
@@ -39,7 +47,6 @@ wss.on('connection', (ws) => {
     console.log(`새 클라이언트(${clientId}) 접속. 현재 접속자: ${clients.size}명`);
     broadcastOnlineClients();
 
-    // 새로 접속한 클라이언트에게는 현재까지의 기분 기록을 바로 보내줌
     ws.send(JSON.stringify({ type: 'UPDATE_MOODS', payload: moodHistory }));
 
     ws.on('message', (message) => {
