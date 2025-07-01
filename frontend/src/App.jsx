@@ -5,7 +5,7 @@ import { useDeviceInfo } from './hooks/useDeviceInfo';
 import { useMoodStore } from './store/moodStore';
 
 const App = () => {
-    const { messages, isConnected, sendMessage } = useWebSocket('ws://3.92.213.168/ws');
+    const { messages, isConnected, sendMessage } = useWebSocket('wss://3.92.213.168/ws');
     const deviceInfo = useDeviceInfo();
     const setServerMoods = useMoodStore(state => state.setMoods);
 
