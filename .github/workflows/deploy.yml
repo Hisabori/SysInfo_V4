@@ -57,6 +57,8 @@ jobs:
             # 8. 백엔드 재시작 (★ 여기가 최종 수정)
             echo "--- Restarting backend ---"
             cd ../backend
+            
+            npm install 
             # 먼저 기존에 돌던 모든 pm2 프로세스를 지워서 충돌 방지 (오류 나도 무시)
             ./node_modules/.bin/pm2 delete all || true
             # 새로 서버 시작
@@ -65,5 +67,6 @@ jobs:
             ./node_modules/.bin/pm2 save
 
             # 9. Nginx 재시작
-            echo "--- Restarting Nginx ---"
+            echo "--- Restarting Nginx with delay ---"
+            sleep 2
             sudo systemctl restart nginx
