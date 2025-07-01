@@ -1,70 +1,50 @@
+// 경로: backend/server.js
+
 import express from 'express';
-import https from 'https';
-import fs from 'fs';
+import http from 'http'; // http 모듈 직접 사용
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 
+const port = 8082;
 const app = express();
-const port = 443; // https 기본 포트
 
-// SSL 인증서 경로
-const server = https.createServer({
-    cert: fs.readFileSync('/etc/letsencrypt/live/sosadmental.com/fullchain.pem'),
-    key: fs.readFileSync('/etc/letsencrypt/live/sosadmental.com/privkey.pem')
-}, app);
+// 1. Express 앱으로 HTTP 서버를 만든다
+const server = http.createServer(app);
 
-server.listen(port, () => {
-    console.log(`백엔드 서버가 https://sosadmental.com 에서 시작됐습니다.`);
-});
-
+// 2. 그 HTTP 서버에 WebSocket 서버를 연결한다
 const wss = new WebSocketServer({ server });
 
-// --- 데이터 저장소 ---
+// --- (나머지 클라이언트 관리 및 방송 로직은 이전과 동일) ---
 const clients = new Map();
-const moodHistory = [];
 
-// --- 방송 함수들 ---
 const broadcastOnlineClients = () => {
     const message = JSON.stringify({
         type: 'UPDATE_CLIENTS',
         payload: Array.from(clients.values()),
     });
-    wss.clients.forEach(client => client.send(message));
-};
-
-const broadcastMoodHistory = () => {
-    const message = JSON.stringify({
-        type: 'UPDATE_MOODS',
-        payload: moodHistory,
+    wss.clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+            client.send(message);
+        }
     });
-    wss.clients.forEach(client => client.send(message));
 };
 
-// --- 메인 로직 ---
 wss.on('connection', (ws) => {
     const clientId = uuidv4();
     clients.set(clientId, { id: clientId, deviceInfo: null });
-    console.log(`새 클라이언트(${clientId}) 접속. 현재 접속자: ${clients.size}명`);
+    console.log(`새로운 클라이언트(${clientId}) 접속. 현재 접속자: ${clients.size}명`);
     broadcastOnlineClients();
-
-    ws.send(JSON.stringify({ type: 'UPDATE_MOODS', payload: moodHistory }));
 
     ws.on('message', (message) => {
         try {
             const parsedMessage = JSON.parse(message);
-
-            if (parsedMessage.type === 'DEVICE_INFO') {
+            if (parsedMessage.type === 'DEVICE_INFO' && clients.has(clientId)) {
                 clients.get(clientId).deviceInfo = parsedMessage.payload;
                 broadcastOnlineClients();
             }
-
-            if (parsedMessage.type === 'ADD_MOOD') {
-                console.log('새로운 기분 기록 수신:', parsedMessage.payload);
-                moodHistory.push(parsedMessage.payload);
-                broadcastMoodHistory();
-            }
-
-        } catch (e) { console.error('잘못된 메시지:', e); }
+        } catch (e) {
+            console.error('잘못된 형식의 메시지:', e);
+        }
     });
 
     ws.on('close', () => {
@@ -72,4 +52,9 @@ wss.on('connection', (ws) => {
         console.log(`클라이언트(${clientId}) 접속 종료. 현재 접속자: ${clients.size}명`);
         broadcastOnlineClients();
     });
+});
+
+// 3. 마지막으로 서버가 포트에서 듣기 시작하게 한다
+server.listen(port, () => {
+    console.log(`백엔드 서버가 http://localhost:${port} 에서 진짜로 시작됐습니다.`);
 });
