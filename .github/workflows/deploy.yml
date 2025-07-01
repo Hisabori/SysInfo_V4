@@ -24,49 +24,37 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # 2. 프로젝트 폴더 경로 설정 및 생성/이동
-            PROJECT_DIR="/home/ubuntu/SysInfo_V4"
-            if [ ! -d "$PROJECT_DIR" ]; then
-              git clone https://github.com/Hisabori/SysInfo_V4.git $PROJECT_DIR
+            # 2. Yarn이 설치되어 있는지 확인하고, 없으면 설치
+            if ! command -v yarn &> /dev/null
+            then
+                echo "--- Yarn not found, installing... ---"
+                npm install -g yarn
             fi
+
+            # 3. 프로젝트 폴더 경로 설정 및 코드 업데이트
+            PROJECT_DIR="/var/www/SysInfo_V4"
             cd $PROJECT_DIR
-            
-            # 3. GitHub 최신 코드로 강제 덮어쓰기
             git fetch --all
             git reset --hard origin/main
 
-            # 4. 프론트엔드 의존성 설치
-            echo "--- Installing frontend dependencies ---"
+            # 4. 프론트엔드 설치 및 빌드 (Yarn 사용!)
+            echo "--- Building Frontend ---"
             cd frontend
-            npm install
-            
-            # 5. 백엔드 의존성 설치
-            echo "--- Installing backend dependencies ---"
-            cd ../backend
-            npm install
+            yarn
+            yarn build
 
-            # 6. 모든 권한 부여
-            echo "--- Setting permissions ---"
-            sudo chmod -R 755 $PROJECT_DIR
-            
-            # 7. 프론트엔드 빌드
-            echo "--- Building frontend ---"
-            cd ../frontend
-            npm run build
-
-            # 8. 백엔드 재시작 (★ 여기가 최종 수정)
-            echo "--- Restarting backend ---"
+            # 5. 백엔드 설치 및 재시작 (Yarn 사용!)
+            echo "--- Restarting Backend ---"
             cd ../backend
-            
-            npm install 
-            # 먼저 기존에 돌던 모든 pm2 프로세스를 지워서 충돌 방지 (오류 나도 무시)
-            ./node_modules/.bin/pm2 delete all || true
-            # 새로 서버 시작
-            ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
-            # 현재 프로세스 목록을 저장해서 재부팅 시에도 유지
+            yarn
+            # pm2가 yarn으로 실행될 때를 대비해 스크립트 직접 실행
+            ./node_modules/.bin/pm2 restart sysinfo-backend || ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
             ./node_modules/.bin/pm2 save
 
-            # 9. Nginx 재시작
-            echo "--- Restarting Nginx with delay ---"
-            sleep 2
+            # 6. Nginx가 읽을 수 있도록 권한 부여
+            echo "--- Setting Permissions ---"
+            sudo chmod -R 755 $PROJECT_DIR
+            
+            # 7. Nginx 재시작
+            echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
