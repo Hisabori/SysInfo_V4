@@ -17,29 +17,24 @@ jobs:
       - name: Deploy with SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_PEM_KEY }}
           port: 22
+          timeout: 30s
+          command_timeout: 20m
           script: |
-            echo "=== Starting Deployment ==="
-
-            # nvm 환경설정
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            # yarn 설치 여부 확인
+            
             if ! command -v yarn &> /dev/null
             then
-              echo "--- Yarn not found. Installing... ---"
-              npm install -g yarn
+                echo "--- Yarn not found, installing... ---"
+                npm install -g yarn
             fi
 
-            # 프로젝트 디렉토리로 이동
             PROJECT_DIR="/var/www/SysInfo_V4"
             cd $PROJECT_DIR
-
-            echo "--- Fetching latest code ---"
             git fetch --all
             git reset --hard origin/main
 
@@ -51,7 +46,8 @@ jobs:
             echo "--- Restarting Backend ---"
             cd ../backend
             yarn
-            ./node_modules/.bin/pm2 restart sysinfo-backend || ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
+            ./node_modules/.bin/pm2 restart sysinfo-backend || \
+            ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
             ./node_modules/.bin/pm2 save
 
             echo "--- Setting Permissions ---"
@@ -59,12 +55,3 @@ jobs:
 
             echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
-
-            echo "=== Deployment Finished ==="
-          timeout: 30s
-          command_timeout: 20m
-          # 필요 시 프록시 옵션은 아래처럼 지정 (없으면 빼도 됨)
-          # proxy_host: ${{ secrets.PROXY_HOST }}
-          # proxy_port: 22
-          # proxy_username: ${{ secrets.PROXY_USERNAME }}
-          # proxy_password: ${{ secrets.PROXY_PASSWORD }}
