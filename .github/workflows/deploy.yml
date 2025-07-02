@@ -1,78 +1,74 @@
-# 워크플로우의 이름 (GitHub Actions UI에 표시됨)
+# .github/workflows/deploy.yml
+
 name: CI/CD Pipeline for SysInfo_V4
 
-# 워크플로우가 실행될 시점을 정의
 on:
-  # main 브랜치에 push 이벤트가 발생할 때마다 워크플로우 실행
   push:
     branches:
       - main
-  # GitHub Actions UI에서 수동으로 워크플로우를 실행할 수 있도록 허용
   workflow_dispatch:
 
-# 워크플로우 내에서 실행될 작업들 (jobs) 정의
 jobs:
-  # 'deploy'라는 이름의 작업 정의
   deploy:
-    # 이 작업이 실행될 환경 (여기서는 Ubuntu 최신 버전)
     runs-on: ubuntu-latest
 
-    # 작업 내에서 실행될 단계들 (steps) 정의
     steps:
-      # 1. GitHub 저장소 코드 체크아웃
       - name: Checkout code
-        uses: actions/checkout@v4 # 최신 버전 사용 권장
+        uses: actions/checkout@v4
 
-      # 2. SSH를 통해 원격 서버에 배포 스크립트 실행
-      - name: Deploy with SSH # 네가 보내준 'name: Deploy with SSH' 부분
-        uses: appleboy/ssh-action@master
+      - name: Deploy with SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          port: 22
           script: |
-            # 1. nvm(Node Version Manager) 환경 설정 불러오기
+            echo "=== Starting Deployment ==="
+
+            # nvm 환경 설정
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
-            # 2. Yarn이 설치되어 있는지 확인하고, 없으면 설치
+
+            # yarn 설치 여부 확인
             if ! command -v yarn &> /dev/null
             then
-                echo "--- Yarn not found, installing... ---"
-                npm install -g yarn
+              echo "--- Yarn not found. Installing... ---"
+              npm install -g yarn
             fi
-            
-            # 3. 프로젝트 폴더 경로 설정 및 코드 업데이트
+
+            # 프로젝트 디렉토리 이동
             PROJECT_DIR="/var/www/SysInfo_V4"
             cd $PROJECT_DIR
+
+            echo "--- Fetching latest code ---"
             git fetch --all
             git reset --hard origin/main
-            
-            # 4. 프론트엔드 설치 및 빌드 (Yarn 사용!)
+
+            # 프론트 빌드
             echo "--- Building Frontend ---"
             cd frontend
             yarn
             yarn build
-            
-            # 5. 백엔드 설치 및 재시작 (Yarn 사용!)
+
+            # 백엔드 빌드 및 PM2 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             yarn
-            # pm2가 yarn으로 실행될 때를 대비해 스크립트 직접 실행
             ./node_modules/.bin/pm2 restart sysinfo-backend || ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
             ./node_modules/.bin/pm2 save
-            
-            # 6. Nginx가 읽을 수 있도록 권한 부여
+
+            # 권한 설정
             echo "--- Setting Permissions ---"
             sudo chmod -R 755 $PROJECT_DIR
-            
-            # 7. Nginx 재시작
+
+            # Nginx 재시작
             echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
-          port: 22
-          protocol: tcp
+
+            echo "=== Deployment Finished ==="
           timeout: 30s
-          command_timeout: 20m # <-- 이 부분을 20m (또는 30m) 등으로 늘려줘
+          command_timeout: 20m
           proxy_port: 22
           proxy_protocol: tcp
           proxy_timeout: 30s
