@@ -26,7 +26,7 @@ jobs:
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
+
             if ! command -v yarn &> /dev/null
             then
                 echo "--- Yarn not found, installing... ---"
