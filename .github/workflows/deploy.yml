@@ -3,55 +3,71 @@ name: CI/CD Pipeline for SysInfo_V4
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main # main 브랜치에 푸시될 때 실행
+  workflow_dispatch: # GitHub Actions UI에서 수동으로 실행 가능하게 함
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # 최신 Ubuntu 환경에서 실행
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 저장소 코드 체크아웃
 
       - name: Deploy with SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.0.3 # SSH를 통해 서버에 배포하는 액션 사용
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_PEM_KEY }}
-          port: 22
-          timeout: 30s
-          command_timeout: 20m
+          host: ${{ secrets.EC2_HOST }} # EC2 서버 IP 주소 (GitHub Secret에서 가져옴)
+          username: ${{ secrets.EC2_USER }} # EC2 서버 사용자 이름 (GitHub Secret에서 가져옴)
+          key: ${{ secrets.EC2_PEM_KEY }} # EC2 서버 접속용 PEM 키 (GitHub Secret에서 가져옴)
+          port: 22 # SSH 포트 (기본값 22)
+          timeout: 30s # SSH 연결 시도 최대 시간
+          command_timeout: 20m # 스크립트 실행 최대 시간
           script: |
+            set -e # 이 스크립트 안의 어떤 명령이든 실패하면 즉시 종료 (강력 권장!)
+
+            # NVM 환경 설정 (Node.js 버전 관리를 위해)
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+            # 필요하다면 특정 Node.js 버전 설치 및 사용 (예시: Node.js 18 LTS)
+            # nvm install 18 || true # 설치되어 있으면 스킵하고, 없으면 설치
+            # nvm use 18 # 해당 버전 사용
+
+            # Yarn이 설치되어 있지 않다면 설치
             if ! command -v yarn &> /dev/null
             then
                 echo "--- Yarn not found, installing... ---"
-                npm install -g yarn
+                # npm install -g yarn # 이 명령은 sudo 권한이 필요할 수 있으니, 서버에 미리 Yarn 설치 권장
+                # 또는 nvm으로 Node.js 설치 후 npm으로 Yarn 설치하는 방식으로도 가능
+                echo "Please ensure Yarn is installed on the EC2 instance or adjust permissions."
+                exit 1 # Yarn 설치가 안 되면 스크립트 종료
             fi
 
-            PROJECT_DIR="/var/www/SysInfo_V4"
-            cd $PROJECT_DIR
-            git fetch --all
-            git reset --hard origin/main
+            PROJECT_DIR="/var/www/SysInfo_V4" # 프로젝트가 배포될 디렉토리
+
+            echo "--- Navigating to Project Directory: $PROJECT_DIR ---"
+            cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; } # 디렉토리 이동 실패 시 종료
+
+            echo "--- Pulling latest code from Git ---"
+            git fetch --all # 모든 리모트 브랜치 정보 가져오기
+            git reset --hard origin/main # main 브랜치의 최신 커밋으로 강제 업데이트
 
             echo "--- Building Frontend ---"
-            cd frontend
-            yarn
-            yarn build
+            cd frontend || { echo "Failed to change directory to frontend"; exit 1; }
+            yarn --frozen-lockfile # yarn.lock 파일에 기반하여 의존성 설치 (더 안정적)
+            yarn build # 프론트엔드 빌드
 
             echo "--- Restarting Backend ---"
-            cd ../backend
-            yarn
+            cd ../backend || { echo "Failed to change directory to backend"; exit 1; }
+            yarn --frozen-lockfile # 백엔드 의존성 설치
             ./node_modules/.bin/pm2 restart sysinfo-backend || \
-            ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
-            ./node_modules/.bin/pm2 save
+            ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend" # PM2로 백엔드 재시작 또는 시작
+            ./node_modules/.bin/pm2 save # PM2 프로세스 목록 저장
 
             echo "--- Setting Permissions ---"
-            sudo chmod -R 755 $PROJECT_DIR
+            sudo chmod -R 755 "$PROJECT_DIR" # 웹 서버가 접근할 수 있도록 권한 설정
 
             echo "--- Restarting Nginx ---"
-            sudo systemctl restart nginx
+            sudo systemctl restart nginx # Nginx 웹 서버 재시작
+            echo "--- Deployment Complete! ---"
