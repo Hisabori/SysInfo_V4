@@ -1,5 +1,3 @@
-# .github/workflows/deploy.yml
-
 name: CI/CD Pipeline for SysInfo_V4
 
 on:
@@ -26,7 +24,7 @@ jobs:
           script: |
             echo "=== Starting Deployment ==="
 
-            # nvm 환경 설정
+            # nvm 환경설정
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
@@ -37,7 +35,7 @@ jobs:
               npm install -g yarn
             fi
 
-            # 프로젝트 디렉토리 이동
+            # 프로젝트 디렉토리로 이동
             PROJECT_DIR="/var/www/SysInfo_V4"
             cd $PROJECT_DIR
 
@@ -45,32 +43,28 @@ jobs:
             git fetch --all
             git reset --hard origin/main
 
-            # 프론트 빌드
             echo "--- Building Frontend ---"
             cd frontend
             yarn
             yarn build
 
-            # 백엔드 빌드 및 PM2 재시작
             echo "--- Restarting Backend ---"
             cd ../backend
             yarn
             ./node_modules/.bin/pm2 restart sysinfo-backend || ./node_modules/.bin/pm2 start server.js --name "sysinfo-backend"
             ./node_modules/.bin/pm2 save
 
-            # 권한 설정
             echo "--- Setting Permissions ---"
             sudo chmod -R 755 $PROJECT_DIR
 
-            # Nginx 재시작
             echo "--- Restarting Nginx ---"
             sudo systemctl restart nginx
 
             echo "=== Deployment Finished ==="
           timeout: 30s
           command_timeout: 20m
-          proxy_port: 22
-          proxy_protocol: tcp
-          proxy_timeout: 30s
-          curl_insecure: false
-          capture_stdout: false
+          # 필요 시 프록시 옵션은 아래처럼 지정 (없으면 빼도 됨)
+          # proxy_host: ${{ secrets.PROXY_HOST }}
+          # proxy_port: 22
+          # proxy_username: ${{ secrets.PROXY_USERNAME }}
+          # proxy_password: ${{ secrets.PROXY_PASSWORD }}
